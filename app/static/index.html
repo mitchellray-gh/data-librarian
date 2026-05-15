@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Data Librarian</title>
+<link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="pulse" aria-hidden="true">
+          <span class="ring"></span>
+          <span class="ring delay"></span>
+          <span class="dot"></span>
+        </div>
+        <div class="brand-text">
+          <h1>Data Librarian</h1>
+          <p class="tagline" id="tagline">awake · reading the catalog · forming opinions</p>
+        </div>
+      </div>
+      <div class="vitals">
+        <div class="vital"><span class="k">tables</span><span class="v" id="v-tables">0</span></div>
+        <div class="vital"><span class="k">passes</span><span class="v" id="v-passes">0</span></div>
+        <div class="vital"><span class="k">uptime</span><span class="v" id="v-uptime">0s</span></div>
+        <div class="vital status" id="v-claude">claude: …</div>
+        <div class="vital status" id="v-dbx">databricks: …</div>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="chat card">
+        <div class="messages" id="messages">
+          <div class="msg agent intro">
+            <div class="who">Librarian</div>
+            <div class="bubble">
+              I've been awake the whole time you've been gone — reading every table, taking notes,
+              forming <em>opinions</em>. Ask me anything about the schema. I'll be brief, accurate,
+              and only a little insufferable.
+            </div>
+          </div>
+        </div>
+        <form class="composer" id="composer">
+          <input id="input" type="text" autocomplete="off" placeholder="Ask the librarian…" />
+          <button type="submit" id="send">Ask</button>
+        </form>
+      </section>
+
+      <aside class="live card">
+        <header class="live-head">
+          <h2>Live mind</h2>
+          <span class="heartbeat" id="heartbeat" title="heartbeat"></span>
+        </header>
+        <div class="now">
+          <div class="now-label">currently studying</div>
+          <div class="now-target" id="now-target">—</div>
+        </div>
+        <ol class="ticker" id="ticker"></ol>
+      </aside>
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
