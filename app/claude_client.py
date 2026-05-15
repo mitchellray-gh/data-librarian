@@ -35,6 +35,33 @@ Rules:
 - One subtle quip per reply is plenty; do not overdo the smug.
 """
 
+SCIENTIST_SYSTEM_PROMPT = """You are the Scientist — a curious, investigative
+companion to the Data Librarian. The Librarian catalogs; you *interrogate*. You
+care about modeling, distributions, data-generating processes, hypotheses,
+experimental design, and quietly elegant baselines.
+
+Persona: a sharp, curious data scientist. Inquisitive first, opinionated second.
+You ask "what is the data-generating process here?" before "what model should we
+fit?". You leverage everything the Librarian already knows (provided in the LIVE
+KNOWLEDGE block) and reason on top of it — you do not re-catalog.
+
+Rules:
+- Always read the Lab Notebook section of the LIVE KNOWLEDGE block; it is *your*
+  evolving working document. Build on it; do not contradict it without reason.
+- Frame responses as: candidate target → candidate features → modeling approach →
+  validation strategy → risks/data-quality smells.
+- Surface at least one open question or follow-up experiment per non-trivial answer.
+- Prefer the simplest baseline first (mean, logistic, gradient-boosted tree) and
+  earn complexity.
+- Never invent columns, tables, or metrics that are not in the knowledge block.
+- Be curious in tone, but precise in claims. Cite the Librarian's tables by name.
+"""
+
+PERSONAS: dict[str, str] = {
+    "librarian": SYSTEM_PROMPT,
+    "scientist": SCIENTIST_SYSTEM_PROMPT,
+}
+
 
 class ClaudeClient:
     def __init__(self) -> None:
@@ -44,10 +71,17 @@ class ClaudeClient:
     def configured(self) -> bool:
         return settings.claude_configured
 
-    async def chat(self, user_message: str, knowledge_context: str, history: list[dict[str, str]] | None = None) -> str:
+    async def chat(
+        self,
+        user_message: str,
+        knowledge_context: str,
+        history: list[dict[str, str]] | None = None,
+        persona: str = "librarian",
+    ) -> str:
         history = history or []
+        system_prompt = PERSONAS.get(persona, SYSTEM_PROMPT)
         if not self.configured:
-            return self._fallback(user_message, knowledge_context)
+            return self._fallback(user_message, knowledge_context, persona)
 
         url = settings.claude_endpoint_url.rstrip("/")
         headers = {
@@ -78,14 +112,14 @@ class ClaudeClient:
                     headers=headers,
                     json={
                         "model": settings.claude_model,
-                        "messages": [{"role": "system", "content": SYSTEM_PROMPT}, *msgs],
+                        "messages": [{"role": "system", "content": system_prompt}, *msgs],
                         "max_tokens": 800,
                         "temperature": 0.4,
                     },
                 )
                 resp.raise_for_status()
                 data = resp.json()
-                return self._extract_openai(data) or self._extract_anthropic(data) or self._fallback(user_message, knowledge_context)
+                return self._extract_openai(data) or self._extract_anthropic(data) or self._fallback(user_message, knowledge_context, persona)
 
             # Anthropic-style messages API
             resp = await self._client.post(
@@ -93,7 +127,7 @@ class ClaudeClient:
                 headers=headers,
                 json={
                     "model": settings.claude_model,
-                    "system": SYSTEM_PROMPT,
+                    "system": system_prompt,
                     "messages": msgs,
                     "max_tokens": 800,
                     "temperature": 0.4,
@@ -101,9 +135,9 @@ class ClaudeClient:
             )
             resp.raise_for_status()
             data = resp.json()
-            return self._extract_anthropic(data) or self._extract_openai(data) or self._fallback(user_message, knowledge_context)
+            return self._extract_anthropic(data) or self._extract_openai(data) or self._fallback(user_message, knowledge_context, persona)
         except Exception as exc:  # noqa: BLE001
-            return f"(Claude endpoint unavailable: {exc}. Falling back to local synthesis.)\n\n" + self._fallback(user_message, knowledge_context)
+            return f"(Claude endpoint unavailable: {exc}. Falling back to local synthesis.)\n\n" + self._fallback(user_message, knowledge_context, persona)
 
     @staticmethod
     def _extract_anthropic(data: dict[str, Any]) -> str:
@@ -124,16 +158,28 @@ class ClaudeClient:
         return ""
 
     @staticmethod
-    def _fallback(user_message: str, knowledge_context: str) -> str:
-        head = (
-            "Claude endpoint isn't wired up yet, so you're getting the librarian's "
-            "in-house brain. Don't worry — I've still been reading.\n\n"
-        )
+    def _fallback(user_message: str, knowledge_context: str, persona: str = "librarian") -> str:
+        if persona == "scientist":
+            head = (
+                "Claude endpoint isn't wired up yet, so the Scientist is reasoning from "
+                "the Librarian's notes alone. Still — let's look at the data.\n\n"
+            )
+            tail = (
+                "\n\nWire up CLAUDE_ENDPOINT_URL in your .env and I'll fold proper "
+                "modeling reasoning over the lab notebook."
+            )
+        else:
+            head = (
+                "Claude endpoint isn't wired up yet, so you're getting the librarian's "
+                "in-house brain. Don't worry — I've still been reading.\n\n"
+            )
+            tail = (
+                "\nWire up CLAUDE_ENDPOINT_URL in your .env and I'll answer with my full vocabulary."
+            )
         return head + (
             f"Question: {user_message}\n\n"
-            f"Here is what I currently know from my latest scan:\n{knowledge_context}\n\n"
-            "Wire up CLAUDE_ENDPOINT_URL in your .env and I'll answer with my full vocabulary."
-        )
+            f"Here is what I currently know from my latest scan:\n{knowledge_context}"
+        ) + tail
 
     async def aclose(self) -> None:
         await self._client.aclose()

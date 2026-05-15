@@ -23,6 +23,7 @@
       <div class="vitals">
         <div class="vital"><span class="k">tables</span><span class="v" id="v-tables">0</span></div>
         <div class="vital"><span class="k">passes</span><span class="v" id="v-passes">0</span></div>
+        <div class="vital"><span class="k">sci passes</span><span class="v" id="v-sci">0</span></div>
         <div class="vital"><span class="k">uptime</span><span class="v" id="v-uptime">0s</span></div>
         <div class="vital status" id="v-claude">claude: …</div>
         <div class="vital status" id="v-dbx">databricks: …</div>
@@ -40,8 +41,20 @@
               and only a little insufferable.
             </div>
           </div>
+          <div class="msg agent intro scientist">
+            <div class="who">Scientist</div>
+            <div class="bubble">
+              And I've been right beside the Librarian, asking the <em>annoying</em> questions —
+              what is the data-generating process, where are the targets, which features will leak.
+              Toggle to <strong>Scientist</strong> in the composer when you want modeling reasoning.
+            </div>
+          </div>
         </div>
         <form class="composer" id="composer">
+          <select id="persona" class="persona" title="who answers">
+            <option value="librarian">Librarian</option>
+            <option value="scientist">Scientist</option>
+          </select>
           <input id="input" type="text" autocomplete="off" placeholder="Ask the librarian…" />
           <button type="submit" id="send">Ask</button>
         </form>
@@ -56,6 +69,13 @@
           <div class="now-label">currently studying</div>
           <div class="now-target" id="now-target">—</div>
         </div>
+        <details class="notebook" id="notebook-wrap">
+          <summary>
+            <span class="notebook-title">Scientist · Lab Notebook</span>
+            <span class="notebook-meta" id="notebook-meta">0 hypotheses · 0 questions</span>
+          </summary>
+          <pre class="notebook-doc" id="notebook-doc">(no scientist pass yet)</pre>
+        </details>
         <ol class="ticker" id="ticker"></ol>
       </aside>
     </main>

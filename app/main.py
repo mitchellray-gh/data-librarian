@@ -18,19 +18,23 @@ from .agent import LiveAgent
 from .claude_client import claude_client
 from .config import settings
 from .knowledge import KnowledgeStore
+from .scientist import ScientistAgent
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 store = KnowledgeStore(settings.knowledge_path)
 agent = LiveAgent(store)
+scientist = ScientistAgent(store)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     agent.start()
+    scientist.start()
     try:
         yield
     finally:
+        await scientist.stop()
         await agent.stop()
         await claude_client.aclose()
 
@@ -45,12 +49,14 @@ app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 class ChatRequest(BaseModel):
     message: str
     history: list[dict[str, str]] = []
+    persona: str = "librarian"  # "librarian" or "scientist"
 
 
 class ChatResponse(BaseModel):
     reply: str
     knowledge_passes: int
     tables_known: int
+    persona: str
 
 
 @app.get("/", include_in_schema=False)
@@ -69,13 +75,29 @@ async def api_status() -> JSONResponse:
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def api_chat(req: ChatRequest) -> ChatResponse:
-    context = store.context_for_chat()
-    reply = await claude_client.chat(req.message, context, req.history)
+    persona = req.persona if req.persona in ("librarian", "scientist") else "librarian"
+    if persona == "scientist":
+        context = store.context_for_scientist_chat()
+    else:
+        context = store.context_for_chat()
+    reply = await claude_client.chat(req.message, context, req.history, persona=persona)
     return ChatResponse(
         reply=reply,
         knowledge_passes=store.passes_completed,
         tables_known=len(store.tables),
+        persona=persona,
     )
+
+
+@app.get("/api/scientist/doc")
+async def api_scientist_doc() -> JSONResponse:
+    """Expose the Scientist's evolving lean knowledge document."""
+    return JSONResponse({
+        "doc": store.scientist_doc,
+        "passes": store.scientist_passes,
+        "hypotheses": list(store.hypotheses),
+        "open_questions": list(store.open_questions),
+    })
 
 
 @app.get("/api/stream")
@@ -95,6 +117,9 @@ async def api_stream() -> EventSourceResponse:
                 "uptime": snap["uptime_seconds"],
                 "tables_known": snap["tables_known"],
                 "passes": snap["passes_completed"],
+                "scientist_passes": snap.get("scientist_passes", 0),
+                "hypotheses_count": snap.get("hypotheses_count", 0),
+                "open_questions_count": snap.get("open_questions_count", 0),
                 "last_target": snap["last_target"],
                 "new_activity": new_items,
             }

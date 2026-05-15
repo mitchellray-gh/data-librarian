@@ -28,6 +28,7 @@ class Settings(BaseSettings):
 
     # Agent behaviour
     learn_interval_seconds: float = Field(default=15.0, ge=1.0)
+    scientist_interval_seconds: float = Field(default=30.0, ge=1.0)
     sample_row_limit: int = Field(default=20, ge=0, le=1000)
     knowledge_path: str = Field(default="./data/knowledge.json")
 

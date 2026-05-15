@@ -42,6 +42,11 @@ class KnowledgeStore:
         self.started_at: float = time.time()
         self.passes_completed: int = 0
         self.last_target: str = ""
+        # ---- Scientist persona state (lean evolving knowledge doc) ----
+        self.scientist_doc: str = ""
+        self.scientist_passes: int = 0
+        self.hypotheses: list[str] = []
+        self.open_questions: list[str] = []
         self._load()
 
     # ---------- persistence ----------
@@ -58,6 +63,10 @@ class KnowledgeStore:
         self.global_patterns = blob.get("global_patterns") or {}
         self.guidance = blob.get("guidance") or []
         self.passes_completed = int(blob.get("passes_completed") or 0)
+        self.scientist_doc = blob.get("scientist_doc") or ""
+        self.scientist_passes = int(blob.get("scientist_passes") or 0)
+        self.hypotheses = blob.get("hypotheses") or []
+        self.open_questions = blob.get("open_questions") or []
 
     async def persist(self) -> None:
         async with self._lock:
@@ -67,6 +76,10 @@ class KnowledgeStore:
                 "global_patterns": self.global_patterns,
                 "guidance": self.guidance,
                 "passes_completed": self.passes_completed,
+                "scientist_doc": self.scientist_doc,
+                "scientist_passes": self.scientist_passes,
+                "hypotheses": self.hypotheses,
+                "open_questions": self.open_questions,
             }
             tmp = self.persist_path + ".tmp"
             with open(tmp, "w", encoding="utf-8") as fh:
@@ -116,6 +129,27 @@ class KnowledgeStore:
         async with self._lock:
             self.passes_completed += 1
 
+    # ---------- Scientist-side mutations ----------
+    async def set_scientist_doc(self, doc: str) -> None:
+        async with self._lock:
+            self.scientist_doc = doc
+            self.scientist_passes += 1
+
+    async def add_hypothesis(self, h: str) -> None:
+        async with self._lock:
+            if h and h not in self.hypotheses:
+                self.hypotheses.append(h)
+                # bound the list so it stays "lean"
+                if len(self.hypotheses) > 50:
+                    self.hypotheses = self.hypotheses[-50:]
+
+    async def add_open_question(self, q: str) -> None:
+        async with self._lock:
+            if q and q not in self.open_questions:
+                self.open_questions.append(q)
+                if len(self.open_questions) > 50:
+                    self.open_questions = self.open_questions[-50:]
+
     # ---------- read helpers ----------
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -126,6 +160,10 @@ class KnowledgeStore:
             "last_target": self.last_target,
             "guidance_count": len(self.guidance),
             "recent_activity": list(self.activity)[-25:],
+            "scientist_passes": self.scientist_passes,
+            "scientist_doc_chars": len(self.scientist_doc),
+            "hypotheses_count": len(self.hypotheses),
+            "open_questions_count": len(self.open_questions),
         }
 
     def context_for_chat(self, max_tables: int = 40) -> str:
@@ -149,3 +187,25 @@ class KnowledgeStore:
             for tip in tbl.training_tips[:3]:
                 lines.append(f"      tip: {tip}")
         return "\n".join(lines)
+
+    def context_for_scientist_chat(self, max_tables: int = 40) -> str:
+        """Compact context for the Scientist persona — librarian's notes + lean lab notebook."""
+        librarian = self.context_for_chat(max_tables=max_tables)
+        sci_lines: list[str] = ["", "Scientist lean knowledge document (auto-curated):"]
+        if self.scientist_doc:
+            # keep it lean — last ~6KB is plenty for a prompt
+            doc = self.scientist_doc[-6000:]
+            sci_lines.append(doc)
+        else:
+            sci_lines.append("(empty — first scientist pass not yet complete)")
+        if self.hypotheses:
+            sci_lines.append("")
+            sci_lines.append("Live hypotheses:")
+            for h in self.hypotheses[-15:]:
+                sci_lines.append(f"  - {h}")
+        if self.open_questions:
+            sci_lines.append("")
+            sci_lines.append("Open questions to investigate:")
+            for q in self.open_questions[-15:]:
+                sci_lines.append(f"  - {q}")
+        return librarian + "\n" + "\n".join(sci_lines)

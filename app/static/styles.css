@@ -84,6 +84,11 @@ body {
 @keyframes blink { 50% { opacity: 0; } }
 
 .composer { display: flex; gap: 10px; padding: 14px; border-top: 1px solid var(--line); background: #fff; }
+.composer .persona {
+  padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+  font: inherit; font-weight: 500; color: var(--ink); cursor: pointer; outline: none;
+}
+.composer .persona:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(13,17,22,0.08); }
 .composer input {
   flex: 1; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; font: inherit;
   outline: none; transition: border-color .15s ease, box-shadow .15s ease;
@@ -94,6 +99,33 @@ body {
   font: inherit; font-weight: 600; cursor: pointer;
 }
 .composer button:disabled { opacity: 0.5; cursor: progress; }
+
+/* Scientist persona accent */
+.msg.agent.scientist .who { color: #6d28d9; }
+.msg.agent.scientist .bubble { border-color: #ece4fb; background: #faf7ff; }
+.msg.agent.intro.scientist .bubble { background: #f3edff; border-color: #e6dcff; }
+
+/* ---------- lab notebook ---------- */
+.notebook {
+  border: 1px solid var(--line); border-radius: 10px; background: #faf7ff;
+  margin-bottom: 12px; overflow: hidden;
+}
+.notebook > summary {
+  list-style: none; cursor: pointer; padding: 10px 12px; display: flex;
+  align-items: center; justify-content: space-between; gap: 8px;
+}
+.notebook > summary::-webkit-details-marker { display: none; }
+.notebook-title { font-size: 12px; font-weight: 600; color: #4c1d95; letter-spacing: 0.04em; text-transform: uppercase; }
+.notebook-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.notebook-doc {
+  margin: 0; padding: 12px; background: #fff; border-top: 1px solid #ece4fb;
+  font: 12px/1.5 var(--mono); white-space: pre-wrap; word-wrap: break-word;
+  max-height: 320px; overflow: auto; color: var(--ink);
+}
+
+/* science-flavored ticker entries */
+.ticker li.sci .kind { color: #6d28d9; }
+.ticker li.sci { background: linear-gradient(90deg, rgba(109,40,217,0.06), transparent 30%); }
 
 /* ---------- live panel ---------- */
 .live { padding: 18px; }
