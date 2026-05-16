@@ -21,11 +21,11 @@ serving endpoint — switch between them with a persona toggle.
   tables, detects primary-key candidates, timestamps and monetary columns, and
   proposes foreign-key joins across the schema.
 - **Deeper modeling investigation (Scientist)** — runs as its own background
-  task on a slower cadence. Reads the Librarian's accumulated `tables`,
-  derives modeling archetypes (forecasting, EDA, panel, feature-engineering
-  source), classifies columns into candidate targets vs. features, bands
-  cardinality, sniffs out data-quality smells, and forms hypotheses + open
-  questions.
+  task on a slower **hourly** cadence. Reads the Librarian's accumulated
+  `tables`, derives modeling archetypes (forecasting, EDA, panel,
+  feature-engineering source), classifies columns into candidate targets vs.
+  features, bands cardinality, sniffs out data-quality smells, and forms
+  hypotheses + open questions.
 - **Lean knowledge document** — the Scientist continuously rewrites a markdown
   *Lab Notebook* (capped per-section so it stays lean) that lives in the
   knowledge store, persists across restarts, and is exposed at
@@ -79,7 +79,7 @@ Edit `.env` (see `.env.example`):
 | `CLAUDE_API_KEY` | Bearer token for the Claude endpoint (falls back to `DATABRICKS_TOKEN`) |
 | `CLAUDE_MODEL` | Model identifier sent in the request body |
 | `LEARN_INTERVAL_SECONDS` | How often the Librarian's recursive pass runs (default `15`) |
-| `SCIENTIST_INTERVAL_SECONDS` | How often the Scientist re-curates the lab notebook (default `30`) |
+| `SCIENTIST_INTERVAL_SECONDS` | How often the Scientist re-curates the lab notebook (default `3600` — once per hour) |
 | `SAMPLE_ROW_LIMIT` | Max rows the agent will sample per table (default `20`) |
 | `KNOWLEDGE_PATH` | Where the persistent knowledge JSON lives |
 
