@@ -18,14 +18,17 @@ function currentPersona() {
 }
 
 function personaLabel(p) {
-  return p === "scientist" ? "Scientist" : "Librarian";
+  if (p === "scientist") return "Scientist";
+  if (p === "analyst") return "Analyst";
+  return "Librarian";
 }
 
 function addMessage(role, text, opts = {}) {
   const persona = opts.persona || currentPersona();
+  const personaClass = role === "agent" && (persona === "scientist" || persona === "analyst")
+    ? ` ${persona}` : "";
   const wrap = document.createElement("div");
-  wrap.className = `msg ${role}` + (opts.thinking ? " thinking" : "")
-    + (role === "agent" && persona === "scientist" ? " scientist" : "");
+  wrap.className = `msg ${role}` + (opts.thinking ? " thinking" : "") + personaClass;
   const who = document.createElement("div");
   who.className = "who";
   who.textContent = role === "user" ? "You" : personaLabel(persona);
@@ -76,10 +79,22 @@ async function refreshNotebookOnce() {
   } catch (_) { /* swallow */ }
 }
 
+async function refreshBriefOnce() {
+  try {
+    const r = await fetch("/api/analyst/brief");
+    const d = await r.json();
+    const doc = $("brief-doc");
+    const meta = $("brief-meta");
+    if (doc) doc.textContent = d.brief && d.brief.trim() ? d.brief : "(no analyst pass yet)";
+    if (meta) meta.textContent = `${(d.insights || []).length} insights · ${(d.trends || []).length} trends · pass #${d.passes || 0}`;
+  } catch (_) { /* swallow */ }
+}
+
 function renderActivity(items) {
   for (const it of items) {
     const li = document.createElement("li");
     if (it.kind === "science" || it.kind === "hypothesis") li.classList.add("sci");
+    if (it.kind === "insight") li.classList.add("ana");
     const k = document.createElement("span"); k.className = "kind"; k.textContent = it.kind;
     const m = document.createElement("span"); m.className = "msg"; m.textContent = it.message;
     li.appendChild(k); li.appendChild(m);
@@ -97,6 +112,7 @@ function startStream() {
       $("v-tables").textContent = d.tables_known;
       $("v-passes").textContent = d.passes;
       if ($("v-sci")) $("v-sci").textContent = d.scientist_passes ?? 0;
+      if ($("v-ana")) $("v-ana").textContent = d.analyst_passes ?? 0;
       $("v-uptime").textContent = fmtUptime(d.uptime);
       if (d.last_target) $("now-target").textContent = d.last_target;
       if (d.new_activity && d.new_activity.length) {
@@ -104,6 +120,10 @@ function startStream() {
         // any science/hypothesis activity → refresh the notebook view
         if (d.new_activity.some((it) => it.kind === "science" || it.kind === "hypothesis")) {
           refreshNotebookOnce();
+        }
+        // any insight activity → refresh the analyst brief view
+        if (d.new_activity.some((it) => it.kind === "insight")) {
+          refreshBriefOnce();
         }
       }
     } catch (_) { /* ignore */ }
@@ -114,9 +134,9 @@ function startStream() {
 if (personaSel) {
   personaSel.addEventListener("change", () => {
     const p = currentPersona();
-    input.placeholder = p === "scientist"
-      ? "Ask the scientist about modeling, features, hypotheses…"
-      : "Ask the librarian…";
+    if (p === "scientist") input.placeholder = "Ask the scientist about modeling, features, hypotheses…";
+    else if (p === "analyst") input.placeholder = "Ask the analyst about trends, opportunities, business impact…";
+    else input.placeholder = "Ask the librarian…";
   });
 }
 
@@ -131,7 +151,9 @@ composer.addEventListener("submit", async (ev) => {
   sendBtn.disabled = true;
   const thinking = addMessage(
     "agent",
-    persona === "scientist" ? "interrogating the lab notebook" : "consulting the catalog",
+    persona === "scientist" ? "interrogating the lab notebook"
+      : persona === "analyst" ? "cross-referencing the briefing with the trend feed"
+      : "consulting the catalog",
     { thinking: true, persona },
   );
   try {
@@ -157,5 +179,7 @@ refreshStatusOnce();
 setInterval(refreshStatusOnce, 15000);
 refreshNotebookOnce();
 setInterval(refreshNotebookOnce, 30000);
+refreshBriefOnce();
+setInterval(refreshBriefOnce, 60000);
 startStream();
 input.focus();

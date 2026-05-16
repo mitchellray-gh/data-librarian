@@ -29,8 +29,14 @@ class Settings(BaseSettings):
     # Agent behaviour
     learn_interval_seconds: float = Field(default=15.0, ge=1.0)
     scientist_interval_seconds: float = Field(default=3600.0, ge=1.0)
+    analyst_interval_seconds: float = Field(default=7200.0, ge=1.0)
     sample_row_limit: int = Field(default=20, ge=0, le=1000)
     knowledge_path: str = Field(default="./data/knowledge.json")
+    consumer_trends_url: str = Field(
+        default="",
+        description="Optional URL returning a JSON list of consumer-trend objects "
+                    "({title, category, keywords}). Falls back to a built-in feed.",
+    )
 
     @property
     def databricks_configured(self) -> bool:

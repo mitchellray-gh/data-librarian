@@ -47,6 +47,11 @@ class KnowledgeStore:
         self.scientist_passes: int = 0
         self.hypotheses: list[str] = []
         self.open_questions: list[str] = []
+        # ---- Analyst persona state (lean evolving business brief) ----
+        self.analyst_brief: str = ""
+        self.analyst_passes: int = 0
+        self.business_insights: list[str] = []
+        self.consumer_trends: list[dict[str, Any]] = []
         self._load()
 
     # ---------- persistence ----------
@@ -67,6 +72,10 @@ class KnowledgeStore:
         self.scientist_passes = int(blob.get("scientist_passes") or 0)
         self.hypotheses = blob.get("hypotheses") or []
         self.open_questions = blob.get("open_questions") or []
+        self.analyst_brief = blob.get("analyst_brief") or ""
+        self.analyst_passes = int(blob.get("analyst_passes") or 0)
+        self.business_insights = blob.get("business_insights") or []
+        self.consumer_trends = blob.get("consumer_trends") or []
 
     async def persist(self) -> None:
         async with self._lock:
@@ -80,6 +89,10 @@ class KnowledgeStore:
                 "scientist_passes": self.scientist_passes,
                 "hypotheses": self.hypotheses,
                 "open_questions": self.open_questions,
+                "analyst_brief": self.analyst_brief,
+                "analyst_passes": self.analyst_passes,
+                "business_insights": self.business_insights,
+                "consumer_trends": self.consumer_trends,
             }
             tmp = self.persist_path + ".tmp"
             with open(tmp, "w", encoding="utf-8") as fh:
@@ -150,6 +163,24 @@ class KnowledgeStore:
                 if len(self.open_questions) > 50:
                     self.open_questions = self.open_questions[-50:]
 
+    # ---------- Analyst-side mutations ----------
+    async def set_analyst_brief(self, brief: str) -> None:
+        async with self._lock:
+            self.analyst_brief = brief
+            self.analyst_passes += 1
+
+    async def set_consumer_trends(self, trends: list[dict[str, Any]]) -> None:
+        async with self._lock:
+            # cap at 50 to stay lean
+            self.consumer_trends = list(trends)[:50]
+
+    async def add_business_insight(self, insight: str) -> None:
+        async with self._lock:
+            if insight and insight not in self.business_insights:
+                self.business_insights.append(insight)
+                if len(self.business_insights) > 50:
+                    self.business_insights = self.business_insights[-50:]
+
     # ---------- read helpers ----------
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -164,6 +195,10 @@ class KnowledgeStore:
             "scientist_doc_chars": len(self.scientist_doc),
             "hypotheses_count": len(self.hypotheses),
             "open_questions_count": len(self.open_questions),
+            "analyst_passes": self.analyst_passes,
+            "analyst_brief_chars": len(self.analyst_brief),
+            "business_insights_count": len(self.business_insights),
+            "consumer_trends_count": len(self.consumer_trends),
         }
 
     def context_for_chat(self, max_tables: int = 40) -> str:
@@ -209,3 +244,26 @@ class KnowledgeStore:
             for q in self.open_questions[-15:]:
                 sci_lines.append(f"  - {q}")
         return librarian + "\n" + "\n".join(sci_lines)
+
+    def context_for_analyst_chat(self, max_tables: int = 40) -> str:
+        """Compact context for the Analyst persona — librarian + scientist + trends + brief."""
+        sci_context = self.context_for_scientist_chat(max_tables=max_tables)
+        ana_lines: list[str] = ["", "Analyst lean business briefing (auto-curated):"]
+        if self.analyst_brief:
+            # keep it lean — last ~6KB
+            ana_lines.append(self.analyst_brief[-6000:])
+        else:
+            ana_lines.append("(empty — first analyst pass not yet complete)")
+        if self.consumer_trends:
+            ana_lines.append("")
+            ana_lines.append("Tracked consumer trends:")
+            for t in self.consumer_trends[:15]:
+                ana_lines.append(
+                    f"  - [{t.get('category','trend')}] {t.get('title','')}"
+                )
+        if self.business_insights:
+            ana_lines.append("")
+            ana_lines.append("Live business insights:")
+            for ins in self.business_insights[-15:]:
+                ana_lines.append(f"  - {ins}")
+        return sci_context + "\n" + "\n".join(ana_lines)

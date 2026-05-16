@@ -24,6 +24,7 @@
         <div class="vital"><span class="k">tables</span><span class="v" id="v-tables">0</span></div>
         <div class="vital"><span class="k">passes</span><span class="v" id="v-passes">0</span></div>
         <div class="vital"><span class="k">sci passes</span><span class="v" id="v-sci">0</span></div>
+        <div class="vital"><span class="k">ana passes</span><span class="v" id="v-ana">0</span></div>
         <div class="vital"><span class="k">uptime</span><span class="v" id="v-uptime">0s</span></div>
         <div class="vital status" id="v-claude">claude: …</div>
         <div class="vital status" id="v-dbx">databricks: …</div>
@@ -49,11 +50,21 @@
               Toggle to <strong>Scientist</strong> in the composer when you want modeling reasoning.
             </div>
           </div>
+          <div class="msg agent intro analyst">
+            <div class="who">Analyst</div>
+            <div class="bubble">
+              And I'm watching the outside world — consumer trends, market signals — and cross-referencing
+              them with what the Librarian has catalogued and what the Scientist is modeling. Toggle to
+              <strong>Analyst</strong> when you want the <em>business</em> read: where the revenue,
+              retention and risk are hiding.
+            </div>
+          </div>
         </div>
         <form class="composer" id="composer">
           <select id="persona" class="persona" title="who answers">
             <option value="librarian">Librarian</option>
             <option value="scientist">Scientist</option>
+            <option value="analyst">Analyst</option>
           </select>
           <input id="input" type="text" autocomplete="off" placeholder="Ask the librarian…" />
           <button type="submit" id="send">Ask</button>
@@ -75,6 +86,13 @@
             <span class="notebook-meta" id="notebook-meta">0 hypotheses · 0 questions</span>
           </summary>
           <pre class="notebook-doc" id="notebook-doc">(no scientist pass yet)</pre>
+        </details>
+        <details class="notebook brief" id="brief-wrap">
+          <summary>
+            <span class="notebook-title brief-title">Analyst · Insights Brief</span>
+            <span class="notebook-meta" id="brief-meta">0 insights · 0 trends</span>
+          </summary>
+          <pre class="notebook-doc" id="brief-doc">(no analyst pass yet)</pre>
         </details>
         <ol class="ticker" id="ticker"></ol>
       </aside>

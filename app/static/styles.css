@@ -105,27 +105,38 @@ body {
 .msg.agent.scientist .bubble { border-color: #ece4fb; background: #faf7ff; }
 .msg.agent.intro.scientist .bubble { background: #f3edff; border-color: #e6dcff; }
 
+/* Analyst persona accent */
+.msg.agent.analyst .who { color: #0f766e; }
+.msg.agent.analyst .bubble { border-color: #d4f1ec; background: #f4fbfa; }
+.msg.agent.intro.analyst .bubble { background: #e6f6f2; border-color: #c7ebe3; }
+
 /* ---------- lab notebook ---------- */
 .notebook {
   border: 1px solid var(--line); border-radius: 10px; background: #faf7ff;
   margin-bottom: 12px; overflow: hidden;
 }
+.notebook.brief { background: #f4fbfa; }
 .notebook > summary {
   list-style: none; cursor: pointer; padding: 10px 12px; display: flex;
   align-items: center; justify-content: space-between; gap: 8px;
 }
 .notebook > summary::-webkit-details-marker { display: none; }
 .notebook-title { font-size: 12px; font-weight: 600; color: #4c1d95; letter-spacing: 0.04em; text-transform: uppercase; }
+.notebook-title.brief-title { color: #0f766e; }
 .notebook-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .notebook-doc {
   margin: 0; padding: 12px; background: #fff; border-top: 1px solid #ece4fb;
   font: 12px/1.5 var(--mono); white-space: pre-wrap; word-wrap: break-word;
   max-height: 320px; overflow: auto; color: var(--ink);
 }
+.notebook.brief .notebook-doc { border-top-color: #d4f1ec; }
 
 /* science-flavored ticker entries */
 .ticker li.sci .kind { color: #6d28d9; }
 .ticker li.sci { background: linear-gradient(90deg, rgba(109,40,217,0.06), transparent 30%); }
+/* analyst-flavored ticker entries */
+.ticker li.ana .kind { color: #0f766e; }
+.ticker li.ana { background: linear-gradient(90deg, rgba(15,118,110,0.07), transparent 30%); }
 
 /* ---------- live panel ---------- */
 .live { padding: 18px; }

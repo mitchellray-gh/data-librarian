@@ -14,6 +14,13 @@ from app.scientist import (
     _modeling_archetype,
     _build_lean_doc,
 )
+from app.analyst import (
+    AnalystAgent,
+    DEFAULT_CONSUMER_TRENDS,
+    _table_keyword_corpus,
+    _trend_matches,
+    _build_lean_brief,
+)
 
 
 def test_inference_helpers() -> None:
@@ -99,9 +106,82 @@ def test_scientist_pass_against_demo() -> None:
     asyncio.run(run())
 
 
+def test_analyst_helpers() -> None:
+    from app.knowledge import TableKnowledge
+    tk = TableKnowledge(
+        full_name="demo.schema.orders",
+        columns=[
+            {"name": "order_id", "type": "BIGINT"},
+            {"name": "customer_id", "type": "BIGINT"},
+            {"name": "amount_usd", "type": "DECIMAL(18,2)"},
+            {"name": "ordered_at", "type": "TIMESTAMP"},
+            {"name": "status", "type": "STRING"},
+            {"name": "payment_method", "type": "STRING"},
+        ],
+        inferred_purpose="Fact / event table",
+    )
+    corpus = _table_keyword_corpus(tk)
+    # tokens from the table name + column names should be present
+    assert "orders" in corpus and "amount_usd" in corpus and "payment_method" in corpus
+    # The "price sensitivity" trend keys against 'amount'/'price'/etc → should fire
+    price_trend = next(t for t in DEFAULT_CONSUMER_TRENDS if "price" in t["title"].lower())
+    assert _trend_matches(price_trend, corpus), "price sensitivity trend should match orders.amount_usd"
+    # The "BNPL" trend keys against 'payment'/'method' → should fire
+    pay_trend = next(t for t in DEFAULT_CONSUMER_TRENDS if "BNPL" in t["title"])
+    assert _trend_matches(pay_trend, corpus)
+    # brief renders the key sections
+    brief = _build_lean_brief(
+        [tk], DEFAULT_CONSUMER_TRENDS,
+        ["[macro] Sustained price sensitivity — quantifiable via `amount_usd` in `demo.schema.orders`."],
+        "Portfolio view: 'macro' is the dominant external pressure.",
+    )
+    assert "Analyst Briefing" in brief
+    assert "Tracked consumer trends" in brief
+    assert "Business-relevant insights" in brief
+    assert "demo.schema.orders" in brief
+
+
+def test_analyst_pass_against_demo() -> None:
+    async def run() -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = KnowledgeStore(os.path.join(tmp, "k.json"))
+            librarian = LiveAgent(store)
+            scientist = ScientistAgent(store)
+            analyst = AnalystAgent(store)
+            await librarian._one_pass()
+            await scientist._one_pass()
+            await analyst._one_pass()
+            # analyst writes its own state
+            assert store.analyst_passes == 1
+            assert store.analyst_brief.strip(), "analyst brief should not be empty"
+            assert "Analyst Briefing" in store.analyst_brief
+            # leverages the librarian's tables in the brief
+            assert "orders" in store.analyst_brief or "customers" in store.analyst_brief
+            # consumer trends were loaded
+            assert len(store.consumer_trends) >= 1
+            # at least one business insight was derived from the demo schema
+            assert store.business_insights, "expected at least one business insight"
+            # analyst context for chat includes the brief + tracked trends
+            ctx = store.context_for_analyst_chat()
+            assert "Analyst lean business briefing" in ctx
+            assert "Tracked consumer trends" in ctx
+            # analyst does not stomp scientist or librarian state
+            assert store.scientist_passes == 1
+            assert store.tables, "librarian tables must still be present"
+            # persistence round-trip retains analyst state
+            await store.persist()
+            store2 = KnowledgeStore(os.path.join(tmp, "k.json"))
+            assert store2.analyst_passes == 1
+            assert "Analyst Briefing" in store2.analyst_brief
+            assert store2.consumer_trends and store2.business_insights
+    asyncio.run(run())
+
+
 if __name__ == "__main__":
     test_inference_helpers()
     test_agent_pass_against_demo()
     test_scientist_helpers()
     test_scientist_pass_against_demo()
+    test_analyst_helpers()
+    test_analyst_pass_against_demo()
     print("ok")
